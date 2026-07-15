@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from openai.types.chat import ChatCompletionMessageParam
 
+from evidence import format_evidence
 from llm_client import parse_chat_completion
 from models import EvidenceStore, QueryType, ResearchReport
 
@@ -21,12 +22,6 @@ or based on a single weak source.
 available."""
 
 
-def _format_evidence(evidence: EvidenceStore) -> str:
-    if not evidence:
-        return "(no evidence was gathered)"
-    return "\n\n".join(f"[{key}]\n{content}" for key, content in evidence.items())
-
-
 def _build_messages(
     query: str,
     query_type: QueryType,
@@ -39,7 +34,7 @@ def _build_messages(
         {
             "role": "user",
             "content": f"Query: {query}\nQuery type: {query_type}\n\n"
-            f"Evidence:\n{_format_evidence(evidence)}",
+            f"Evidence:\n{format_evidence(evidence)}",
         },
     ]
     if previous_report is not None and feedback is not None:
