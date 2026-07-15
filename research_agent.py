@@ -2,16 +2,8 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
-from openai import (
-    APIConnectionError,
-    APITimeoutError,
-    InternalServerError,
-    OpenAI,
-    RateLimitError,
-    pydantic_function_tool,
-)
+from openai import pydantic_function_tool
 from openai.types.chat import (
-    ChatCompletion,
     ChatCompletionMessage,
     ChatCompletionMessageFunctionToolCall,
     ChatCompletionMessageParam,
@@ -26,9 +18,9 @@ from openai.types.chat.chat_completion_message_function_tool_call_param import (
     ChatCompletionMessageFunctionToolCallParam,
 )
 from pydantic import BaseModel, ValidationError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from config import MAX_RESEARCH_ITERATIONS, OPENAI_API_KEY, OPENAI_MODEL
+from config import MAX_RESEARCH_ITERATIONS
+from llm_client import create_chat_completion
 from models import EvidenceStore, QueryType
 from search_client import SearchError, search_web
 
@@ -40,9 +32,14 @@ available tools:
 3. check_fact to verify any claim that seems uncertain before storing it
 4. store_evidence to save each confirmed piece of evidence under a short, descriptive key
 
-Break the question into sub-questions first, then work through them. When you have \
-gathered sufficient evidence, respond with a plain text message (no tool call) starting \
-with "RESEARCH COMPLETE" followed by a brief summary of what you found."""
+Break the question into sub-questions first, then work through them. IMPORTANT: only \
+evidence saved with store_evidence is passed on to the report-writing stage that follows \
+you — searching or summarising content without then storing it means that information is \
+lost. Every sub-question you investigate must end with at least one store_evidence call \
+before you move on. Never respond with RESEARCH COMPLETE until you have called \
+store_evidence at least once. When you have gathered sufficient evidence, respond with a \
+plain text message (no tool call) starting with "RESEARCH COMPLETE" followed by a brief \
+summary of what you found."""
 
 _SYSTEM_PROMPTS: dict[QueryType, str] = {
     "factual": _BASE_INSTRUCTIONS
@@ -55,6 +52,7 @@ _SYSTEM_PROMPTS: dict[QueryType, str] = {
     + "\n\nThis is an OPINION-seeking question. Gather expert opinions, cite sources for "
     "each, and present a balanced view rather than a single verdict.",
 }
+
 
 class SearchWebArgs(BaseModel):
     """Search the web for information relevant to a query."""
@@ -95,26 +93,6 @@ TOOLS: list[ChatCompletionFunctionToolParam] = [
     pydantic_function_tool(StoreEvidenceArgs, name="store_evidence"),
 ]
 
-_RETRYABLE_OPENAI_ERRORS = (RateLimitError, APIConnectionError, APITimeoutError, InternalServerError)
-
-
-@retry(
-    retry=retry_if_exception_type(_RETRYABLE_OPENAI_ERRORS),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=8),
-    reraise=True,
-)
-def _create_chat_completion(
-    client: OpenAI,
-    messages: list[ChatCompletionMessageParam],
-    tools: list[ChatCompletionFunctionToolParam] | None = None,
-) -> ChatCompletion:
-    if tools is None:
-        return client.chat.completions.create(model=OPENAI_MODEL, messages=messages)
-    return client.chat.completions.create(
-        model=OPENAI_MODEL, messages=messages, tools=tools, parallel_tool_calls=True
-    )
-
 
 def _to_assistant_param(message: ChatCompletionMessage) -> ChatCompletionAssistantMessageParam:
     param: ChatCompletionAssistantMessageParam = {"role": "assistant", "content": message.content}
@@ -145,9 +123,8 @@ def _search_web_tool(query: str) -> str:
     return "\n".join(f"- {r.title} ({r.url}): {r.content}" for r in response.results)
 
 
-def _summarise_content_tool(client: OpenAI, content: str, focus: str) -> str:
-    response = _create_chat_completion(
-        client,
+def _summarise_content_tool(content: str, focus: str) -> str:
+    response = create_chat_completion(
         [
             {
                 "role": "system",
@@ -155,14 +132,13 @@ def _summarise_content_tool(client: OpenAI, content: str, focus: str) -> str:
                 "on the requested aspect. Be concise and factual.",
             },
             {"role": "user", "content": f"Focus: {focus}\n\nContent:\n{content}"},
-        ],
+        ]
     )
     return response.choices[0].message.content or ""
 
 
-def _check_fact_tool(client: OpenAI, claim: str, context: str) -> str:
-    response = _create_chat_completion(
-        client,
+def _check_fact_tool(claim: str, context: str) -> str:
+    response = create_chat_completion(
         [
             {
                 "role": "system",
@@ -171,7 +147,7 @@ def _check_fact_tool(client: OpenAI, claim: str, context: str) -> str:
                 "UNCERTAIN followed by a one-sentence explanation.",
             },
             {"role": "user", "content": f"Claim: {claim}\n\nContext:\n{context}"},
-        ],
+        ]
     )
     return response.choices[0].message.content or ""
 
@@ -181,11 +157,7 @@ def _store_evidence_tool(evidence: EvidenceStore, key: str, content: str) -> str
     return f"Stored evidence under key '{key}' ({len(content)} chars)."
 
 
-def _dispatch_tool(
-    client: OpenAI,
-    call: ChatCompletionMessageFunctionToolCall,
-    evidence: EvidenceStore,
-) -> str:
+def _dispatch_tool(call: ChatCompletionMessageFunctionToolCall, evidence: EvidenceStore) -> str:
     raw_args = call.function.arguments
     try:
         match call.function.name:
@@ -193,10 +165,10 @@ def _dispatch_tool(
                 return _search_web_tool(SearchWebArgs.model_validate_json(raw_args).query)
             case "summarise_content":
                 args = SummariseContentArgs.model_validate_json(raw_args)
-                return _summarise_content_tool(client, args.content, args.focus)
+                return _summarise_content_tool(args.content, args.focus)
             case "check_fact":
                 args = CheckFactArgs.model_validate_json(raw_args)
-                return _check_fact_tool(client, args.claim, args.context)
+                return _check_fact_tool(args.claim, args.context)
             case "get_current_date":
                 GetCurrentDateArgs.model_validate_json(raw_args)
                 return get_current_date()
@@ -210,12 +182,11 @@ def _dispatch_tool(
 
 
 def _dispatch_tool_calls(
-    client: OpenAI,
     calls: list[ChatCompletionMessageFunctionToolCall],
     evidence: EvidenceStore,
 ) -> list[str]:
     with ThreadPoolExecutor(max_workers=len(calls)) as executor:
-        futures = [executor.submit(_dispatch_tool, client, call, evidence) for call in calls]
+        futures = [executor.submit(_dispatch_tool, call, evidence) for call in calls]
         return [future.result() for future in futures]
 
 
@@ -224,7 +195,6 @@ def _truncate(text: str, limit: int = 60) -> str:
 
 
 def run_research_agent(query: str, query_type: QueryType, *, verbose: bool = False) -> EvidenceStore:
-    client = OpenAI(api_key=OPENAI_API_KEY)
     evidence: EvidenceStore = {}
     messages: list[ChatCompletionMessageParam] = [
         {"role": "system", "content": _SYSTEM_PROMPTS[query_type]},
@@ -233,7 +203,7 @@ def run_research_agent(query: str, query_type: QueryType, *, verbose: bool = Fal
 
     step = 0
     for _ in range(MAX_RESEARCH_ITERATIONS):
-        response = _create_chat_completion(client, messages, TOOLS)
+        response = create_chat_completion(messages, TOOLS)
         message = response.choices[0].message
         messages.append(_to_assistant_param(message))
 
@@ -244,7 +214,7 @@ def run_research_agent(query: str, query_type: QueryType, *, verbose: bool = Fal
                 print(f"  Iter {step}: RESEARCH COMPLETE — gathered {len(evidence)} evidence items")
             break
 
-        results = _dispatch_tool_calls(client, function_calls, evidence)
+        results = _dispatch_tool_calls(function_calls, evidence)
         for call, result in zip(function_calls, results):
             step += 1
             if verbose:
