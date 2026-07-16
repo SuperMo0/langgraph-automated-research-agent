@@ -27,10 +27,15 @@ from core.search_client import SearchError, search_web
 _BASE_INSTRUCTIONS = """You are a research agent. Investigate the user's question using the \
 available tools:
 
-1. search_web to find sources for each sub-question
-2. summarise_content to condense long search results, focused on what's relevant
-3. check_fact to verify any claim that seems uncertain before storing it
-4. store_evidence to save each confirmed piece of evidence under a short, descriptive key
+1. get_current_date to find out today's date. Always call this first, before any search — \
+your own training data has a cutoff and may be stale, so anchor yourself to the real \
+current date before searching. For anything time-sensitive (recent events, "latest"/ \
+"current" claims, version numbers, market data, etc.), include the current year in your \
+search_web queries and judge recency relative to the real date, not your training cutoff.
+2. search_web to find sources for each sub-question
+3. summarise_content to condense long search results, focused on what's relevant
+4. check_fact to verify any claim that seems uncertain before storing it
+5. store_evidence to save each confirmed piece of evidence under a short, descriptive key
 
 Break the question into sub-questions first, then work through them. IMPORTANT: only \
 evidence saved with store_evidence is passed on to the report-writing stage that follows \
