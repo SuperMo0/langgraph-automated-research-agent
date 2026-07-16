@@ -1,4 +1,3 @@
-from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
@@ -8,10 +7,6 @@ from orchestration import run_pipeline
 from report_output import render_console, save_report
 
 app = typer.Typer(add_completion=False)
-
-
-class Backend(str, Enum):
-    langgraph = "langgraph"
 
 
 @app.command()
