@@ -12,7 +12,7 @@ from openai.types.chat.chat_completion_function_tool_param import ChatCompletion
 from pydantic import BaseModel
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from config import OPENAI_API_KEY, OPENAI_MODEL
+from core.config import OPENAI_API_KEY, OPENAI_MODEL
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 

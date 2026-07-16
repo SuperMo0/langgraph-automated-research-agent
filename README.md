@@ -75,17 +75,19 @@ every OpenAI and Tavily call goes through a shared, retry-wrapped client so tran
 ## project structure
 
 ```text
-research.py           # cli entry point (typer)
-orchestration.py       # langgraph state graph wiring the 4 stages together
-router.py              # stage 1 — query classifier
-research_agent.py      # stage 2 — raw openai tool-calling loop
-synthesis.py           # stage 3 — evidence -> ResearchReport
-evaluator.py           # stage 4 — scores a ResearchReport
-models.py              # pydantic models shared across every stage
-config.py              # env vars and pipeline constants
-llm_client.py          # shared openai client + retry logic
-search_client.py       # tavily wrapper with retries
-evidence.py            # shared evidence-store formatting helper
-report_output.py       # markdown/console rendering + file saving
-reports/               # saved .md / .json reports (gitignored)
+research.py             # cli entry point (typer)
+core/
+  models.py             # pydantic models shared across every stage
+  config.py             # env vars and pipeline constants
+  llm_client.py         # shared openai client + retry logic
+  search_client.py      # tavily wrapper with retries
+  evidence.py           # shared evidence-store formatting helper
+  report_output.py      # markdown/console rendering + file saving
+pipeline/
+  router.py             # stage 1 — query classifier
+  research_agent.py     # stage 2 — raw openai tool-calling loop
+  synthesis.py          # stage 3 — evidence -> ResearchReport
+  evaluator.py          # stage 4 — scores a ResearchReport
+  orchestration.py      # langgraph state graph wiring the 4 stages together
+reports/                # saved .md / .json reports (gitignored)
 ```

@@ -3,13 +3,12 @@ from typing import Any, NotRequired, TypedDict
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from config import MAX_SYNTHESIS_ITERATIONS
-
-from models import EvaluationResult, EvidenceStore, QueryType, ResearchReport, RouterDecision
-from router import classify_query
-from research_agent import run_research_agent
-from synthesis import synthesise_report
-from evaluator import evaluate_report
+from core.config import MAX_SYNTHESIS_ITERATIONS
+from core.models import EvaluationResult, EvidenceStore, QueryType, ResearchReport, RouterDecision
+from pipeline.evaluator import evaluate_report
+from pipeline.research_agent import run_research_agent
+from pipeline.router import classify_query
+from pipeline.synthesis import synthesise_report
 
 
 class PipelineState(TypedDict):

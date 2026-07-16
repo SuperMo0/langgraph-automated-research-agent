@@ -2,9 +2,9 @@ from datetime import UTC, datetime
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from evidence import format_evidence
-from llm_client import parse_chat_completion
-from models import EvidenceStore, QueryType, ResearchReport
+from core.evidence import format_evidence
+from core.llm_client import parse_chat_completion
+from core.models import EvidenceStore, QueryType, ResearchReport
 
 _SYSTEM_PROMPT = """You are a research report writer. Given a research question, its type \
 (factual / analytical / opinion), and evidence gathered by a research agent, produce a \

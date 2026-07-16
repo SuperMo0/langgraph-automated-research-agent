@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-from models import ResearchReport
+from core.models import ResearchReport
 
 _DIVIDER = "═" * 48
 

@@ -5,7 +5,7 @@ from tavily.errors import TimeoutError as TavilyTimeoutError
 from tavily.errors import UsageLimitExceededError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from config import TAVILY_API_KEY
+from core.config import TAVILY_API_KEY
 
 
 class SearchResult(BaseModel):

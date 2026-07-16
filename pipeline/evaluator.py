@@ -1,8 +1,8 @@
 from openai.types.chat import ChatCompletionMessageParam
 
-from evidence import format_evidence
-from llm_client import parse_chat_completion
-from models import EvaluationResult, EvidenceStore, ResearchReport
+from core.evidence import format_evidence
+from core.llm_client import parse_chat_completion
+from core.models import EvaluationResult, EvidenceStore, ResearchReport
 
 _SYSTEM_PROMPT = """You are a strict evaluator of research reports. Score the given report \
 on four criteria, each from 1 (very poor) to 10 (excellent):
@@ -41,7 +41,7 @@ def evaluate_report(report: ResearchReport, evidence: EvidenceStore) -> Evaluati
 
 
 if __name__ == "__main__":
-    from synthesis import synthesise_report
+    from pipeline.synthesis import synthesise_report
 
     mock_evidence: EvidenceStore = {
         "pydanticai_typing": "PydanticAI enforces typed result models via Pydantic, so "

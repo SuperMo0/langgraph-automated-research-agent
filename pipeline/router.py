@@ -1,7 +1,7 @@
 from openai.types.chat import ChatCompletionMessageParam
 
-from llm_client import parse_chat_completion
-from models import RouterDecision
+from core.llm_client import parse_chat_completion
+from core.models import RouterDecision
 
 _SYSTEM_PROMPT = """Classify the user's research query into exactly one type:
 

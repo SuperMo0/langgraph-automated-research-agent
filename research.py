@@ -3,8 +3,8 @@ from typing import Annotated
 
 import typer
 
-from orchestration import run_pipeline
-from report_output import render_console, save_report
+from core.report_output import render_console, save_report
+from pipeline.orchestration import run_pipeline
 
 app = typer.Typer(add_completion=False)
 

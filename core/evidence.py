@@ -1,4 +1,4 @@
-from models import EvidenceStore
+from core.models import EvidenceStore
 
 
 def format_evidence(evidence: EvidenceStore) -> str:

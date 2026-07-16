@@ -19,10 +19,10 @@ from openai.types.chat.chat_completion_message_function_tool_call_param import (
 )
 from pydantic import BaseModel, ValidationError
 
-from config import MAX_RESEARCH_ITERATIONS
-from llm_client import create_chat_completion
-from models import EvidenceStore, QueryType
-from search_client import SearchError, search_web
+from core.config import MAX_RESEARCH_ITERATIONS
+from core.llm_client import create_chat_completion
+from core.models import EvidenceStore, QueryType
+from core.search_client import SearchError, search_web
 
 _BASE_INSTRUCTIONS = """You are a research agent. Investigate the user's question using the \
 available tools:
