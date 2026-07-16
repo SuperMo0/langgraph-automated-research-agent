@@ -37,9 +37,13 @@ evidence saved with store_evidence is passed on to the report-writing stage that
 you — searching or summarising content without then storing it means that information is \
 lost. Every sub-question you investigate must end with at least one store_evidence call \
 before you move on. Never respond with RESEARCH COMPLETE until you have called \
-store_evidence at least once. When you have gathered sufficient evidence, respond with a \
-plain text message (no tool call) starting with "RESEARCH COMPLETE" followed by a brief \
-summary of what you found."""
+store_evidence at least once. The report-writing stage cannot see your search results or \
+your reasoning, only exactly what you store — so every piece of evidence you store must \
+include the source it came from (title and URL) alongside the fact, e.g. "Paris is the \
+capital of France (Source: Wikipedia, en.wikipedia.org/wiki/Paris)". Evidence without a \
+named source is much less useful to the final report. When you have gathered sufficient \
+evidence, respond with a plain text message (no tool call) starting with "RESEARCH \
+COMPLETE" followed by a brief summary of what you found."""
 
 _SYSTEM_PROMPTS: dict[QueryType, str] = {
     "factual": _BASE_INSTRUCTIONS
@@ -129,7 +133,10 @@ def _summarise_content_tool(content: str, focus: str) -> str:
             {
                 "role": "system",
                 "content": "Summarise the given content in 2-4 sentences, focused specifically "
-                "on the requested aspect. Be concise and factual.",
+                "on the requested aspect. Be concise and factual. If the content includes "
+                "source titles or URLs (e.g. lines like '- Title (url): ...'), preserve which "
+                "source each fact came from in the summary so it can still be cited later — "
+                "never drop source attribution while condensing.",
             },
             {"role": "user", "content": f"Focus: {focus}\n\nContent:\n{content}"},
         ]
